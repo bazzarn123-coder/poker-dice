@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>3D Poker Dice - Mobile Casino</title>
-    <!-- Browser Address Icon (Favicon) -->
-    <link rel="icon" type="image/jpeg" href="dice.jpg">
+    <!-- Embedded Browser Address Icon (Favicon) -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%23064e3b%22/><text y=%22.9em%22 font-size=%2280%22 x=%2210%22>🎲</text></svg>">
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Font Awesome -->
@@ -60,7 +60,7 @@
 <body class="flex flex-col h-screen w-screen relative">
 
     <!-- Splash Screen Overlay -->
-    <div id="splash-screen" class="absolute inset-0 w-full h-full z-50 flex flex-col items-center justify-end pb-32 p-6 cursor-pointer overflow-hidden transition-opacity duration-500">
+    <div id="splash-screen" class="absolute inset-0 w-full h-full z-50 flex flex-col items-center justify-end pb-44 p-6 cursor-pointer overflow-hidden transition-opacity duration-500">
         <!-- Dice Background Image Stretched to Any Screen Size (Clear, no tint/blur) -->
         <img src="dice.jpg" alt="Poker Dice Splash" class="absolute inset-0 w-full h-full object-cover -z-10">
 
@@ -679,8 +679,6 @@
             updateHandEvaluationText("- Tap ROLL to begin -");
         }
 
-graphql
-
         function resetDiceLocks() {
             lockedDice = [false, false, false, false, false];
             diceHighlightRings.forEach(ring => ring.visible = false);
@@ -759,7 +757,7 @@ graphql
                 diceMeshes[i].quaternion.copy(diceBodies[i].quaternion);
 
                 diceHighlightRings[i].position.x = diceMeshes[i].position.x;
-                diceHighlightRINGS[i].position.z = diceMeshes[i].position.z;
+                diceHighlightRings[i].position.z = diceMeshes[i].position.z;
                 diceHighlightRings[i].position.y = 0.05;
             }
 
