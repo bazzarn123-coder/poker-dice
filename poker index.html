@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>3D Poker Dice - Mobile Casino</title>
+    <!-- Browser Address Icon (Favicon) -->
+    <link rel="icon" type="image/jpeg" href="dice.jpg">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    
+    <!-- Three.js and Cannon.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+
+    <style>
+        body, html {
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            background-color: #020617;
+            font-family: 'Inter', sans-serif;
+        }
+        .font-cinzel { font-family: 'Cinzel', serif; }
+        
+        .btn-gold {
+            background: linear-gradient(135deg, #fef08a 0%, #eab308 50%, #ca8a04 100%);
+            box-shadow: 0 4px 15px rgba(234, 179, 8, 0.3);
+            transition: all 0.15s ease;
+        }
+        .btn-gold:active:not(:disabled) {
+            transform: scale(0.96);
+            box-shadow: 0 2px 8px rgba(234, 179, 8, 0.4);
+        }
+        .btn-gold:disabled {
+            opacity: 0.4;
+            filter: grayscale(100%);
+        }
+
+        /* Glassmorphic UI containers */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.88);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); }
+        ::-webkit-scrollbar-thumb { background: #eab308; border-radius: 2px; }
+    </style>
+</head>
+<body class="flex flex-col h-screen w-screen relative">
+
+    <!-- Splash Screen Overlay -->
+    <div id="splash-screen" class="absolute inset-0 w-full h-full z-50 flex flex-col justify-between p-6 overflow-hidden transition-opacity duration-500">
+        <!-- Dice Background Image Stretched to Any Screen Size -->
+        <img src="dice.jpg" alt="Poker Dice Splash" class="absolute inset-0 w-full h-full object-cover -z-10">
+        <!-- Dark semi-transparent overlay gradient for enhanced contrast -->
+        <div class="absolute inset-0 bg-slate-950/20 -z-10"></div>
+
+        <!-- Flexible Spacer to push button onto the bottom wooden deck area -->
+        <div class="flex-grow"></div>
+
+        <!-- Bottom Start Button Positioned on Wooden Deck -->
+        <div class="pb-6 flex justify-center w-full">
+            <button id="btn-start-game" class="btn-gold text-slate-950 font-black font-cinzel text-base py-4 px-10 rounded-2xl flex items-center justify-center gap-3 tracking-widest uppercase shadow-2xl w-full max-w-xs active:scale-95 transition">
+                <i class="fa-solid fa-dice text-xl"></i>
+                <span>START GAME</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Canvas Overlay -->
+    <div id="canvas-container" class="absolute inset-0 w-full h-full z-0"></div>
+
+    <!-- Mobile Top Header HUD -->
+    <header class="relative z-10 p-3 flex justify-between items-stretch gap-2 pointer-events-none">
+        <!-- Player 1 Card -->
+        <div id="p1-card" class="glass-panel rounded-2xl p-2.5 flex-1 transition-all duration-300 border-2 border-emerald-500/80 shadow-lg">
+            <div class="flex justify-between items-center mb-0.5">
+                <span class="font-cinzel text-[11px] font-bold text-emerald-400">P1</span>
+                <span id="p1-turn-badge" class="text-[9px] bg-emerald-500 text-slate-950 font-black px-1.5 py-0.2 rounded uppercase">TURN</span>
+            </div>
+            <div id="p1-score" class="text-xl font-black text-amber-400 font-cinzel leading-none">0</div>
+            <div id="p1-hand" class="text-[10px] text-slate-300 font-medium truncate mt-1">Ready</div>
+        </div>
+
+        <!-- Center Match Info -->
+        <div class="flex flex-col items-center justify-center pointer-events-auto px-1">
+            <div class="glass-panel px-3 py-1 rounded-xl text-center border border-amber-500/40">
+                <div id="current-player-title" class="font-cinzel text-xs font-bold text-amber-400 tracking-wider whitespace-nowrap">
+                    PLAYER 1
+                </div>
+                <div id="roll-count-text" class="text-[10px] font-bold text-slate-200 tracking-widest uppercase">
+                    ROLL 1 / 3
+                </div>
+            </div>
+        </div>
+
+        <!-- Player 2 Card -->
+        <div id="p2-card" class="glass-panel rounded-2xl p-2.5 flex-1 transition-all duration-300 border-2 border-slate-800 opacity-60">
+            <div class="flex justify-between items-center mb-0.5">
+                <span class="font-cinzel text-[11px] font-bold text-slate-400">P2</span>
+                <span id="p2-turn-badge" class="text-[9px] bg-amber-500 text-slate-950 font-black px-1.5 py-0.2 rounded uppercase hidden">TURN</span>
+            </div>
+            <div id="p2-score" class="text-xl font-black text-amber-400 font-cinzel leading-none">0</div>
+            <div id="p2-hand" class="text-[10px] text-slate-300 font-medium truncate mt-1">Waiting</div>
+        </div>
+    </header>
+
+    <!-- Top Action Buttons -->
+    <div class="absolute top-16 right-3 z-20 flex gap-1.5 pointer-events-auto">
+        <button id="btn-rules" class="glass-panel p-2 rounded-xl text-slate-200 hover:text-white active:scale-95 transition" title="Rules">
+            <i class="fa-solid fa-book-open text-xs"></i>
+        </button>
+        <button id="btn-reset" class="glass-panel p-2 rounded-xl text-slate-200 hover:text-white active:scale-95 transition" title="Reset Match">
+            <i class="fa-solid fa-rotate-right text-xs"></i>
+        </button>
+    </div>
+
+    <!-- Mobile Bottom Control Bar with Integrated Status & Evaluator -->
+    <footer class="relative z-10 mt-auto p-4 pt-2 flex flex-col items-center gap-2 pointer-events-auto">
+        <!-- Moved Status Box & Hand Evaluator Pill to Bottom Area -->
+        <div class="flex flex-col items-center justify-center w-full max-w-sm gap-1 mb-1">
+            <div class="glass-panel px-4 py-1.5 rounded-xl text-center border border-amber-500/40 w-full flex justify-between items-center bg-slate-950/85">
+                <div id="current-player-title" class="font-cinzel text-xs font-bold text-amber-400 tracking-wider whitespace-nowrap">
+                    PLAYER 1
+                </div>
+                <div id="roll-count-text" class="text-[10px] font-bold text-slate-200 tracking-widest uppercase">
+                    ROLL 1 / 3
+                </div>
+            </div>
+
+            <!-- Current Evaluated Hand Pill -->
+            <div id="hand-eval-pill" class="glass-panel border-amber-400/40 text-amber-300 font-cinzel font-bold text-xs px-4 py-1.5 rounded-xl shadow-lg text-center tracking-wide w-full truncate bg-slate-950/85">
+                - Tap ROLL to begin -
+            </div>
+        </div>
+
+        <div class="text-[10px] text-slate-300 glass-panel px-3 py-1 rounded-full border border-slate-700/50 flex items-center gap-1.5">
+            <i class="fa-solid fa-hand-pointer text-amber-400"></i>
+            <span>Tap dice to <b>LOCK / HOLD</b> before re-rolling</span>
+        </div>
+
+        <div class="flex gap-2 w-full max-w-sm">
+            <button id="btn-throw" class="btn-gold text-slate-950 font-black font-cinzel text-base py-3.5 px-4 rounded-xl flex-1 flex items-center justify-center gap-2 tracking-wider uppercase">
+                <i class="fa-solid fa-dice text-xl"></i>
+                <span id="btn-throw-text">ROLL DICE</span>
+            </button>
+
+            <button id="btn-lock-turn" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-amber-400 font-bold font-cinzel text-sm px-4 rounded-xl flex items-center justify-center gap-1.5 transition active:scale-95 disabled:opacity-40">
+                <i class="fa-solid fa-check"></i>
+                <span>KEEP</span>
+            </button>
+        </div>
+    </footer>
+
+    <!-- Rules Modal -->
+    <div id="modal-rules" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div class="glass-panel border border-amber-500/40 rounded-3xl max-w-sm w-full p-5 text-slate-200 shadow-2xl flex flex-col max-h-[85vh]">
+            <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-800">
+                <h2 class="font-cinzel text-lg font-bold text-amber-400 flex items-center gap-2">
+                    <i class="fa-solid fa-dice text-amber-500"></i> Poker Dice Rules
+                </h2>
+                <button id="btn-close-rules" class="text-slate-400 hover:text-white p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            
+            <div class="overflow-y-auto space-y-3 text-xs leading-relaxed pr-1">
+                <p class="text-slate-300">Take turns rolling 5 poker dice. You have up to <b>3 rolls</b> per turn to make your best 5-card poker hand.</p>
+                <p class="text-slate-300">Tap dice to <b>HOLD</b> them between rolls. Locked dice stay on the table with a cyan highlight ring.</p>
+
+                <div class="space-y-1 pt-1 font-medium">
+                    <div class="text-amber-400 font-bold mb-1">Hand Ranks (Highest to Lowest):</div>
+                    <div class="flex justify-between bg-slate-900/60 p-1.5 rounded"><span class="text-amber-300 font-bold">1. 5 of a Kind</span> <span>A - A - A - A - A</span></div>
+                    <div class="flex justify-between bg-slate-900/60 p-1.5 rounded"><span class="text-amber-300 font-bold">2. 4 of a Kind</span> <span>K - K - K - K - 9</span></div>
+                    <div class="flex justify-between bg-slate-900/60 p-1.5 rounded"><span class="text-amber-300 font-bold">3. Full House</span> <span>Q - Q - Q - J - J</span></div>
+                    <div class="flex justify-between bg-slate-900/60 p-1.5 rounded"><span class="text-amber-300 font-bold">4. Straight</span> <span>A-K-Q-J-10 or K-Q-J-10-9</span></div>
+                    <div class="flex justify-between bg-slate-900/60 p-1.5 rounded"><span class="text-amber-300 font-bold">5. 3 of a Kind</span> <span>J - J - J - A - 10</span></div>
+                    <div class="flex justify-between bg-slate-900/60 p-1.5 rounded"><span class="text-amber-300 font-bold">6. Two Pair</span> <span>10 - 10 - 9 - 9 - K</span></div>
+                    <div class="flex justify-between bg-slate-900/60 p-1.5 rounded"><span class="text-amber-300 font-bold">7. One Pair</span> <span>9 - 9 - A - K - Q</span></div>
+                    <div class="flex justify-between bg-slate-900/60 p-1.5 rounded"><span class="text-amber-300 font-bold">8. High Card</span> <span>Highest face value</span></div>
+                </div>
+            </div>
+            
+            <button id="btn-rules-gotit" class="mt-4 w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold font-cinzel py-2.5 rounded-xl transition">
+                Got It
+            </button>
+        </div>
+    </div>
+
+    <!-- Round Winner Overlay Modal -->
+    <div id="modal-round-win" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div class="glass-panel border-2 border-amber-500/60 rounded-3xl max-w-xs w-full p-5 text-center text-white shadow-2xl">
+            <div class="w-12 h-12 bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center text-2xl mx-auto mb-2 border border-amber-500/40">
+                <i class="fa-solid fa-trophy"></i>
+            </div>
+            <h2 id="win-title" class="font-cinzel text-2xl font-black text-amber-400 mb-0.5">PLAYER 1 WINS!</h2>
+            <p id="win-reason" class="text-slate-300 text-xs mb-4">Full House beats Two Pair</p>
+            
+            <div class="bg-slate-900/80 rounded-xl p-3 mb-4 border border-slate-800 space-y-1.5 text-xs">
+                <div class="flex justify-between items-center text-slate-300">
+                    <span>P1 Hand:</span>
+                    <span id="win-p1-hand" class="font-bold text-amber-300">Full House</span>
+                </div>
+                <div class="flex justify-between items-center text-slate-300">
+                    <span>P2 Hand:</span>
+                    <span id="win-p2-hand" class="font-bold text-amber-300">One Pair</span>
+                </div>
+            </div>
+
+            <button id="btn-next-round" class="btn-gold w-full text-slate-950 font-black font-cinzel text-base py-3 rounded-xl uppercase tracking-wider">
+                Next Round
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Constants
+        const FACE_NAMES = ['Ace', 'King', 'Queen', 'Jack', '10', '9'];
+        const DICE_SIZE = 0.92; // Optimized size for tight mobile screen view
+
+        // Globals
+        let scene, camera, renderer;
+        let physicsWorld;
+        let diceMeshes = [];
+        let diceBodies = [];
+        let diceHighlightRings = [];
+        let lockedDice = [false, false, false, false, false];
+
+        // Game State
+        let currentPlayer = 1;
+        let currentRoll = 0;
+        let p1Score = 0;
+        let p2Score = 0;
+        let p1BestHand = null;
+        let p2BestHand = null;
+        let isRolling = false;
+
+        function createDiceFaceTexture(faceIndex) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+
+            // Off-White Ivory Base with subtle radial vignette
+            const grad = ctx.createRadialGradient(128, 128, 20, 128, 128, 150);
+            grad.addColorStop(0, '#ffffff');
+            grad.addColorStop(1, '#e2e8f0');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, 256, 256);
+
+            // Dark Outer Border for maximum edge distinction
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 14;
+            ctx.strokeRect(7, 7, 242, 242);
+
+            // Inner Gold Accenting
+            ctx.strokeStyle = '#d97706';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(14, 14, 228, 228);
+
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            const faceName = FACE_NAMES[faceIndex];
+
+            // Setup Helper for Drawing Dark Outlined Text & Symbols with Maximized Font Sizes
+            const drawHighContrastText = (text, font, color, x, y) => {
+                ctx.font = font;
+                
+                // Dark Heavy Outline
+                ctx.strokeStyle = '#020617';
+                ctx.lineWidth = 14;
+                ctx.lineJoin = 'round';
+                ctx.strokeText(text, x, y);
+
+                // Rich Filled Text
+                ctx.fillStyle = color;
+                ctx.fillText(text, x, y);
+            };
+
+            // Significantly enlarged artwork taking up full face area
+            if (faceName === 'Ace') {
+                drawHighContrastText('A', '900 155px "Cinzel", serif', '#b91c1c', 128, 95);
+                drawHighContrastText('♠', '80px serif', '#0f172a', 128, 195);
+            } else if (faceName === 'King') {
+                drawHighContrastText('K', '900 155px "Cinzel", serif', '#991b1b', 128, 95);
+                drawHighContrastText('◆', '65px serif', '#7f1d1d', 128, 195);
+            } else if (faceName === 'Queen') {
+                drawHighContrastText('Q', '900 155px "Cinzel", serif', '#047857', 128, 95);
+                drawHighContrastText('♣', '65px serif', '#064e3b', 128, 195);
+            } else if (faceName === 'Jack') {
+                drawHighContrastText('J', '900 155px "Cinzel", serif', '#1d4ed8', 128, 95);
+                drawHighContrastText('♠', '65px serif', '#1e3a8a', 128, 195);
+            } else if (faceName === '10') {
+                drawHighContrastText('10', '900 135px "Cinzel", serif', '#b45309', 128, 98);
+                drawHighContrastText('♥', '60px serif', '#78350f', 128, 195);
+            } else if (faceName === '9') {
+                drawHighContrastText('9', '900 155px "Cinzel", serif', '#6d28d9', 128, 98);
+                drawHighContrastText('♣', '65px serif', '#4c1d95', 128, 195);
+            }
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.anisotropy = 8;
+            return texture;
+        }
+
+        function initScene() {
+            const container = document.getElementById('canvas-container');
+
+            // 1. Three.js Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x020617);
+
+            // 2. Mobile Overhead Perspective Camera
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+            adjustCameraPosition();
+
+            // 3. WebGL Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            // 4. Cannon Physics Engine - Natural Friction & Angular Damping
+            physicsWorld = new CANNON.World();
+            physicsWorld.gravity.set(0, -32, 0);
+            physicsWorld.broadphase = new CANNON.NaiveBroadphase();
+            physicsWorld.solver.iterations = 18;
+
+            const diceMaterial = new CANNON.Material('dice');
+            const tableMaterial = new CANNON.Material('table');
+            
+            // High natural friction and low bounce so dice land flat naturally
+            physicsWorld.addContactMaterial(new CANNON.ContactMaterial(tableMaterial, diceMaterial, {
+                friction: 0.6,
+                restitution: 0.18
+            }));
+
+            // 5. Lighting Setup
+            const ambient = new THREE.AmbientLight(0xffffff, 0.85);
+            scene.add(ambient);
+
+            const spotLight = new THREE.SpotLight(0xfffbeb, 1.4);
+            spotLight.position.set(0, 22, 5);
+            spotLight.castShadow = true;
+            spotLight.shadow.mapSize.width = 1024;
+            spotLight.shadow.mapSize.height = 1024;
+            scene.add(spotLight);
+
+            // 6. Build Enclosed Casino Table & Physics Boundaries
+            createTableAndBoundaries(tableMaterial);
+
+            // 7. Generate 5 Poker Dice
+            createDice(diceMaterial);
+
+            // Raycaster for Tap Selection
+            setupRaycaster();
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function adjustCameraPosition() {
+            const aspect = window.innerWidth / window.innerHeight;
+            if (aspect < 0.6) {
+                // Portrait Mobile Phones
+                camera.position.set(0, 18.5, 10.5);
+            } else {
+                // Tablets / Desktop
+                camera.position.set(0, 15, 9.0);
+            }
+            camera.lookAt(0, -0.3, 0);
+        }
+
+        function createTableAndBoundaries(tableMaterial) {
+            const width = 8.5;
+            const depth = 9.5;
+
+            // Felt Surface
+            const floorGeo = new THREE.BoxGeometry(width, 1, depth);
+            const floorMat = new THREE.MeshStandardMaterial({
+                color: 0x064e3b, // Deep Emerald
+                roughness: 0.8
+            });
+            const floorMesh = new THREE.Mesh(floorGeo, floorMat);
+            floorMesh.position.y = -0.5;
+            floorMesh.receiveShadow = true;
+            scene.add(floorMesh);
+
+            // Wood Border Framing
+            const frameGeo = new THREE.BoxGeometry(width + 1.2, 0.8, depth + 1.2);
+            const frameMat = new THREE.MeshStandardMaterial({ color: 0x3b1d0a, roughness: 0.3 });
+            const frameMesh = new THREE.Mesh(frameGeo, frameMat);
+            frameMesh.position.y = -0.6;
+            scene.add(frameMesh);
+
+            // Physics Floor
+            const groundBody = new CANNON.Body({ mass: 0, shape: new CANNON.Plane(), material: tableMaterial });
+            groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+            physicsWorld.addBody(groundBody);
+
+            // Invisible Boundary Walls to keep dice on screen
+            const wallH = 14;
+            const wallT = 1;
+
+            const walls = [
+                { pos: [0, wallH/2, -depth/2 - wallT/2], shape: [width/2, wallH/2, wallT/2] }, // North
+                { pos: [0, wallH/2, depth/2 + wallT/2], shape: [width/2, wallH/2, wallT/2] },  // South
+                { pos: [width/2 + wallT/2, wallH/2, 0], shape: [wallT/2, wallH/2, depth/2] },  // East
+                { pos: [-width/2 - wallT/2, wallH/2, 0], shape: [wallT/2, wallH/2, depth/2] }  // West
+            ];
+
+            walls.forEach(w => {
+                const body = new CANNON.Body({ mass: 0, shape: new CANNON.Box(new CANNON.Vec3(...w.shape)) });
+                body.position.set(...w.pos);
+                physicsWorld.addBody(body);
+            });
+        }
+
+        function createDice(diceMaterial) {
+            const faceTextures = [
+                createDiceFaceTexture(0), // Ace
+                createDiceFaceTexture(1), // King
+                createDiceFaceTexture(2), // Queen
+                createDiceFaceTexture(3), // Jack
+                createDiceFaceTexture(4), // 10
+                createDiceFaceTexture(5)  // 9
+            ];
+
+            const materials = faceTextures.map(tex => new THREE.MeshStandardMaterial({
+                map: tex,
+                roughness: 0.15,
+                metalness: 0.05
+            }));
+
+            const dieGeo = new THREE.BoxGeometry(DICE_SIZE, DICE_SIZE, DICE_SIZE);
+
+            // Hold Highlight Ring
+            const ringGeo = new THREE.RingGeometry(DICE_SIZE * 0.7, DICE_SIZE * 0.9, 32);
+            ringGeo.rotateX(-Math.PI / 2);
+            const ringMat = new THREE.MeshBasicMaterial({ color: 0x06b6d4, side: THREE.DoubleSide });
+
+            const startX = [-1.8, -0.9, 0, 0.9, 1.8];
+
+            for (let i = 0; i < 5; i++) {
+                const dieMesh = new THREE.Mesh(dieGeo, materials);
+                dieMesh.castShadow = true;
+                dieMesh.receiveShadow = true;
+                dieMesh.userData = { index: i };
+                scene.add(dieMesh);
+                diceMeshes.push(dieMesh);
+
+                const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+                ringMesh.visible = false;
+                scene.add(ringMesh);
+                diceHighlightRings.push(ringMesh);
+
+                const half = DICE_SIZE / 2;
+                const dieBody = new CANNON.Body({
+                    mass: 0.85,
+                    shape: new CANNON.Box(new CANNON.Vec3(half, half, half)),
+                    material: diceMaterial,
+                    linearDamping: 0.35,
+                    angularDamping: 0.4
+                });
+
+                dieBody.position.set(startX[i], DICE_SIZE / 2, 0);
+                physicsWorld.addBody(dieBody);
+                diceBodies.push(dieBody);
+            }
+        }
+
+        function throwDice() {
+            if (isRolling) return;
+
+            if (currentRoll > 0 && lockedDice.every(l => l)) {
+                updateHandEvaluationText("All dice locked! Tap KEEP or unlock dice.");
+                return;
+            }
+
+            isRolling = true;
+            currentRoll++;
+            updateUI();
+
+            diceBodies.forEach((body, i) => {
+                if (lockedDice[i]) {
+                    body.velocity.set(0, 0, 0);
+                    body.angularVelocity.set(0, 0, 0);
+                    return;
+                }
+
+                // Randomize throw height and positions
+                body.position.y = 2.0 + Math.random() * 1.0;
+                body.position.x = (i - 2) * 0.7 + (Math.random() - 0.5) * 0.3;
+                body.position.z = 1.8 + Math.random() * 0.4;
+
+                // Physics impulses for realistic tumbling
+                const impulse = new CANNON.Vec3(
+                    (Math.random() - 0.5) * 2.2,
+                    Math.random() * 2.0 + 2.5,
+                    -(Math.random() * 3.5 + 6.5)
+                );
+                body.applyImpulse(impulse, body.position);
+
+                body.angularVelocity.set(
+                    (Math.random() - 0.5) * 20,
+                    (Math.random() - 0.5) * 20,
+                    (Math.random() - 0.5) * 20
+                );
+            });
+
+            setTimeout(checkDiceSettled, 900);
+        }
+
+        // Checks velocity to detect complete organic rest without force-snapping orientations
+        function checkDiceSettled() {
+            let settled = true;
+
+            diceBodies.forEach((body) => {
+                if (body.velocity.norm() > 0.05 || body.angularVelocity.norm() > 0.05) {
+                    settled = false;
+                }
+            });
+
+            if (!settled) {
+                setTimeout(checkDiceSettled, 120);
+            } else {
+                isRolling = false;
+                evaluateCurrentDice();
+            }
+        }
+
+        // Determines topmost face using vector math relative to world space
+        function getDieFace(dieMesh) {
+            const normals = [
+                new THREE.Vector3(1, 0, 0),
+                new THREE.Vector3(-1, 0, 0),
+                new THREE.Vector3(0, 1, 0),
+                new THREE.Vector3(0, -1, 0),
+                new THREE.Vector3(0, 0, 1),
+                new THREE.Vector3(0, 0, -1)
+            ];
+
+            let maxDot = -Infinity;
+            let topFaceIndex = 0;
+            const worldUp = new THREE.Vector3(0, 1, 0);
+
+            normals.forEach((normal, index) => {
+                const worldNormal = normal.clone().applyQuaternion(dieMesh.quaternion);
+                const dot = worldNormal.dot(worldUp);
+                if (dot > maxDot) {
+                    maxDot = dot;
+                    topFaceIndex = index;
+                }
+            });
+
+            return topFaceIndex;
+        }
+
+        function evaluateCurrentDice() {
+            const currentFaces = diceMeshes.map(mesh => getDieFace(mesh));
+            const handResult = parsePokerHand(currentFaces);
+
+            if (currentPlayer === 1) p1BestHand = handResult;
+            else p2BestHand = handResult;
+
+            updateHandEvaluationText(`${handResult.name} (${handResult.description})`);
+
+            if (currentRoll >= 3) {
+                document.getElementById('btn-throw').disabled = true;
+                updateHandEvaluationText(`Max rolls reached! ${handResult.name}`);
+            }
+        }
+
+        function parsePokerHand(faceIndices) {
+            const counts = {};
+            faceIndices.forEach(idx => counts[idx] = (counts[idx] || 0) + 1);
+
+            const uniqueValues = Object.keys(counts).map(Number);
+            const freqs = Object.values(counts).sort((a, b) => b - a);
+            const names = faceIndices.map(i => FACE_NAMES[i]).join(', ');
+
+            if (freqs[0] === 5) return { rank: 8, name: "Five of a Kind", scoreVal: 800 + (6 - uniqueValues[0]), description: names };
+            if (freqs[0] === 4) return { rank: 7, name: "Four of a Kind", scoreVal: 700, description: names };
+            if (freqs[0] === 3 && freqs[1] === 2) return { rank: 6, name: "Full House", scoreVal: 600, description: names };
+
+            const sorted = [...faceIndices].sort((a, b) => a - b);
+            const isStraight = sorted.every((val, i, arr) => i === 0 || val === arr[i - 1] + 1);
+            if (isStraight && uniqueValues.length === 5) return { rank: 5, name: "Straight", scoreVal: 500, description: names };
+
+            if (freqs[0] === 3) return { rank: 4, name: "Three of a Kind", scoreVal: 400, description: names };
+            if (freqs[0] === 2 && freqs[1] === 2) return { rank: 3, name: "Two Pair", scoreVal: 300, description: names };
+            if (freqs[0] === 2) return { rank: 2, name: "One Pair", scoreVal: 200, description: names };
+
+            return { rank: 1, name: "High Card", scoreVal: 100 - sorted[0], description: names };
+        }
+
+        function setupRaycaster() {
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2();
+
+            const handleSelect = (clientX, clientY) => {
+                if (isRolling || currentRoll === 0) return;
+
+                mouse.x = (clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObjects(diceMeshes);
+
+                if (intersects.length > 0) {
+                    const dieMesh = intersects[0].object;
+                    const index = dieMesh.userData.index;
+
+                    lockedDice[index] = !lockedDice[index];
+                    diceHighlightRings[index].visible = lockedDice[index];
+                }
+            };
+
+            window.addEventListener('pointerdown', (e) => handleSelect(e.clientX, e.clientY));
+        }
+
+        function nextTurnOrEndRound() {
+            if (currentPlayer === 1) {
+                currentPlayer = 2;
+                currentRoll = 0;
+                resetDiceLocks();
+                updateUI();
+                updateHandEvaluationText("Player 2's turn to roll!");
+            } else {
+                determineRoundWinner();
+            }
+        }
+
+        function determineRoundWinner() {
+            const modal = document.getElementById('modal-round-win');
+            const winTitle = document.getElementById('win-title');
+            const winReason = document.getElementById('win-reason');
+            const winP1 = document.getElementById('win-p1-hand');
+            const winP2 = document.getElementById('win-p2-hand');
+
+            winP1.textContent = p1BestHand ? p1BestHand.name : "None";
+            winP2.textContent = p2BestHand ? p2BestHand.name : "None";
+
+            if (p1BestHand.rank > p2BestHand.rank || (p1BestHand.rank === p2BestHand.rank && p1BestHand.scoreVal > p2BestHand.scoreVal)) {
+                p1Score++;
+                winTitle.textContent = "PLAYER 1 WINS!";
+                winTitle.className = "font-cinzel text-2xl font-black text-emerald-400 mb-0.5";
+                winReason.textContent = `${p1BestHand.name} beats ${p2BestHand.name}`;
+            } else if (p2BestHand.rank > p1BestHand.rank || (p2BestHand.rank === p1BestHand.rank && p2BestHand.scoreVal > p1BestHand.scoreVal)) {
+                p2Score++;
+                winTitle.textContent = "PLAYER 2 WINS!";
+                winTitle.className = "font-cinzel text-2xl font-black text-amber-400 mb-0.5";
+                winReason.textContent = `${p2BestHand.name} beats ${p1BestHand.name}`;
+            } else {
+                winTitle.textContent = "IT'S A TIE!";
+                winTitle.className = "font-cinzel text-2xl font-black text-slate-200 mb-0.5";
+                winReason.textContent = `Both matched with ${p1BestHand.name}`;
+            }
+
+            document.getElementById('p1-score').textContent = p1Score;
+            document.getElementById('p2-score').textContent = p2Score;
+            modal.classList.remove('hidden');
+        }
+
+        function startNewRound() {
+            document.getElementById('modal-round-win').classList.add('hidden');
+            currentPlayer = 1;
+            currentRoll = 0;
+            p1BestHand = null;
+            p2BestHand = null;
+            resetDiceLocks();
+            updateUI();
+            updateHandEvaluationText("- Tap ROLL to begin -");
+        }
+
+        function resetDiceLocks() {
+            lockedDice = [false, false, false, false, false];
+            diceHighlightRings.forEach(ring => ring.visible = false);
+        }
+
+        function resetMatch() {
+            p1Score = 0;
+            p2Score = 0;
+            document.getElementById('p1-score').textContent = "0";
+            document.getElementById('p2-score').textContent = "0";
+            startNewRound();
+        }
+
+        function updateUI() {
+            const p1Card = document.getElementById('p1-card');
+            const p2Card = document.getElementById('p2-card');
+            const p1Badge = document.getElementById('p1-turn-badge');
+            const p2Badge = document.getElementById('p2-turn-badge');
+            const turnTitle = document.getElementById('current-player-title');
+            const rollText = document.getElementById('roll-count-text');
+            const btnThrow = document.getElementById('btn-throw');
+            const btnThrowText = document.getElementById('btn-throw-text');
+
+            if (currentPlayer === 1) {
+                p1Card.className = "glass-panel rounded-2xl p-2.5 flex-1 transition-all duration-300 border-2 border-emerald-500 shadow-lg scale-102";
+                p2Card.className = "glass-panel rounded-2xl p-2.5 flex-1 transition-all duration-300 border-2 border-slate-800 opacity-60";
+                p1Badge.classList.remove('hidden');
+                p2Badge.classList.add('hidden');
+                turnTitle.textContent = "PLAYER 1";
+                turnTitle.className = "font-cinzel text-xs font-bold text-emerald-400 tracking-wider";
+            } else {
+                p2Card.className = "glass-panel rounded-2xl p-2.5 flex-1 transition-all duration-300 border-2 border-amber-500 shadow-lg scale-102";
+                p1Card.className = "glass-panel rounded-2xl p-2.5 flex-1 transition-all duration-300 border-2 border-slate-800 opacity-60";
+                p2Badge.classList.remove('hidden');
+                p1Badge.classList.add('hidden');
+                turnTitle.textContent = "PLAYER 2";
+                turnTitle.className = "font-cinzel text-xs font-bold text-amber-400 tracking-wider";
+            }
+
+            if (currentRoll === 0) {
+                rollText.textContent = "ROLL 1 / 3";
+                btnThrowText.textContent = "ROLL DICE";
+                btnThrow.disabled = false;
+            } else if (currentRoll < 3) {
+                rollText.textContent = `ROLL ${currentRoll + 1} / 3`;
+                btnThrowText.textContent = "REROLL UNLOCKED";
+                btnThrow.disabled = false;
+            } else {
+                rollText.textContent = "NO ROLLS LEFT";
+                btnThrowText.textContent = "KEEP HAND";
+                btnThrow.disabled = true;
+            }
+
+            document.getElementById('p1-hand').textContent = p1BestHand ? p1BestHand.name : "Ready";
+            document.getElementById('p2-hand').textContent = p2BestHand ? p2BestHand.name : "Waiting";
+        }
+
+        function updateHandEvaluationText(text) {
+            document.getElementById('hand-eval-pill').textContent = text;
+        }
+
+        function onWindowResize() {
+            adjustCameraPosition();
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            physicsWorld.step(1 / 60);
+
+            for (let i = 0; i < 5; i++) {
+                diceMeshes[i].position.copy(diceBodies[i].position);
+                diceMeshes[i].quaternion.copy(diceBodies[i].quaternion);
+
+                diceHighlightRings[i].position.x = diceMeshes[i].position.x;
+                diceHighlightRings[i].position.z = diceMeshes[i].position.z;
+                diceHighlightRings[i].position.y = 0.05;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        window.onload = function () {
+            initScene();
+            animate();
+
+            // Splash Screen Start Button Logic
+            const splashScreen = document.getElementById('splash-screen');
+            const startBtn = document.getElementById('btn-start-game');
+            startBtn.addEventListener('click', () => {
+                splashScreen.classList.add('opacity-0');
+                setTimeout(() => {
+                    splashScreen.classList.add('hidden');
+                }, 500);
+            });
+
+            // Event Listeners
+            document.getElementById('btn-throw').addEventListener('click', throwDice);
+            document.getElementById('btn-lock-turn').addEventListener('click', () => {
+                if (currentRoll > 0 && !isRolling) nextTurnOrEndRound();
+            });
+
+            const rulesModal = document.getElementById('modal-rules');
+            document.getElementById('btn-rules').addEventListener('click', () => rulesModal.classList.remove('hidden'));
+            document.getElementById('btn-close-rules').addEventListener('click', () => rulesModal.classList.add('hidden'));
+            document.getElementById('btn-rules-gotit').addEventListener('click', () => rulesModal.classList.add('hidden'));
+
+            document.getElementById('btn-reset').addEventListener('click', resetMatch);
+            document.getElementById('btn-next-round').addEventListener('click', startNewRound);
+        };
+    </script>
+</body>
+</html>
