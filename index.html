@@ -60,21 +60,14 @@
 <body class="flex flex-col h-screen w-screen relative">
 
     <!-- Splash Screen Overlay -->
-    <div id="splash-screen" class="absolute inset-0 w-full h-full z-50 flex flex-col justify-between p-6 overflow-hidden transition-opacity duration-500">
-        <!-- Dice Background Image Stretched to Any Screen Size -->
+    <div id="splash-screen" class="absolute inset-0 w-full h-full z-50 flex flex-col items-center justify-end pb-32 p-6 cursor-pointer overflow-hidden transition-opacity duration-500">
+        <!-- Dice Background Image Stretched to Any Screen Size (Clear, no tint/blur) -->
         <img src="dice.jpg" alt="Poker Dice Splash" class="absolute inset-0 w-full h-full object-cover -z-10">
-        <!-- Dark semi-transparent overlay gradient for enhanced contrast -->
-        <div class="absolute inset-0 bg-slate-950/20 -z-10"></div>
 
-        <!-- Flexible Spacer to push button onto the bottom wooden deck area -->
-        <div class="flex-grow"></div>
-
-        <!-- Bottom Start Button Positioned on Wooden Deck -->
-        <div class="pb-6 flex justify-center w-full">
-            <button id="btn-start-game" class="btn-gold text-slate-950 font-black font-cinzel text-base py-4 px-10 rounded-2xl flex items-center justify-center gap-3 tracking-widest uppercase shadow-2xl w-full max-w-xs active:scale-95 transition">
-                <i class="fa-solid fa-dice text-xl"></i>
-                <span>START GAME</span>
-            </button>
+        <!-- Center / Bottom Tap Prompt -->
+        <div class="glass-panel border border-amber-500/60 px-6 py-4 rounded-2xl text-center shadow-2xl animate-pulse">
+            <i class="fa-solid fa-hand-pointer text-amber-400 text-2xl mb-2"></i>
+            <div class="font-cinzel text-sm font-bold text-amber-300 tracking-widest uppercase">Tap Anywhere to Start</div>
         </div>
     </div>
 
@@ -686,6 +679,8 @@
             updateHandEvaluationText("- Tap ROLL to begin -");
         }
 
+graphql
+
         function resetDiceLocks() {
             lockedDice = [false, false, false, false, false];
             diceHighlightRings.forEach(ring => ring.visible = false);
@@ -764,7 +759,7 @@
                 diceMeshes[i].quaternion.copy(diceBodies[i].quaternion);
 
                 diceHighlightRings[i].position.x = diceMeshes[i].position.x;
-                diceHighlightRings[i].position.z = diceMeshes[i].position.z;
+                diceHighlightRINGS[i].position.z = diceMeshes[i].position.z;
                 diceHighlightRings[i].position.y = 0.05;
             }
 
@@ -775,10 +770,9 @@
             initScene();
             animate();
 
-            // Splash Screen Start Button Logic
+            // Splash Screen Tap to Start Logic
             const splashScreen = document.getElementById('splash-screen');
-            const startBtn = document.getElementById('btn-start-game');
-            startBtn.addEventListener('click', () => {
+            splashScreen.addEventListener('click', () => {
                 splashScreen.classList.add('opacity-0');
                 setTimeout(() => {
                     splashScreen.classList.add('hidden');
